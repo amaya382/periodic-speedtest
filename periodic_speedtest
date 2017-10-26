@@ -1,0 +1,127 @@
+#!/bin/bash -e
+
+usage() {
+  echo 'Usage: periodic_speedtest [-n num_of_times=60, -i interval(min)=1, -s server_id] results_file_prefix'
+  exit
+}
+
+cut_f() {
+  cat - | cut -d ',' -f $1
+}
+
+bc_2() {
+  echo "scale=2; $1" | bc
+}
+
+gt() {
+  [ $(echo "$1 > $2" | bc) -eq 1 ]
+}
+
+while getopts hn:i:s: OPT
+do
+  case $OPT in
+    "h" ) usage;;
+    "n" ) NUM_TIMES=${OPTARG:-60};;
+    "i" ) INTERVAL=${OPTARG:-1};;
+    "s" ) SERVER_ID=${OPTARG};;
+  esac
+done
+shift $((OPTIND - 1))
+
+DATE=$(date +%Y-%m-%d)
+CLI='/tmp/speedtest-cli'
+RESULTS_CSV="${1}_${DATE}.csv"
+RESULTS_CHART="${1}_${DATE}.png"
+
+# validation
+if [ ${NUM_TIMES:-0} -le 0 ] || [ ${INTERVAL:-0} -le 0 ] || [ -z $1 ]; then
+  usage
+fi
+
+DURATION=$((${NUM_TIMES} * ${INTERVAL}))
+echo 'speedtest has beed started...'
+[ ${DURATION} -lt 500 ] \
+  && echo "take about ${DURATION} mins..." \
+  || echo "take about $((${DURATION} / 60)) hours..."
+
+# get cli
+wget -q https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py -O ${CLI}
+chmod +x ${CLI}
+
+# write header
+${CLI} --csv-header > ${RESULTS_CSV}
+
+# first speedtest
+if [ -z ${SERVER_ID} ]; then
+  ${CLI} --csv >> ${RESULTS_CSV}
+  SERVER_ID=$(cat ${RESULTS_CSV} | tail -1 | cut_f 1)
+else
+  ${CLI} --csv --server ${SERVER_ID} >> ${RESULTS_CSV}
+fi
+echo 'fin iter 1...'
+
+# second and more speedtest
+if [ ${NUM_TIMES} -ge 2 ]; then
+  for ((i=2; i<${NUM_TIMES}; i++)); do
+    sleep $((${INTERVAL} * 60))
+    ${CLI} --csv --server ${SERVER_ID} >> ${RESULTS_CSV}
+    echo "fin iter $i..."
+  done
+fi
+
+# generate chart
+BASE_URL='http://chart.apis.google.com/chart'
+CHS='500x500'
+CHT='lc'
+CHCO='B61972,007AB7'
+CHDL='Upload%28MB%29|Download%28MB%29'
+CHM='o,B61972,0,-1,5|o,007AB7,1,-1,5'
+CHXT='x,y'
+CHTT="$(sed -n 2p ${RESULTS_CSV} | cut_f 3)%28$(sed -n 2p ${RESULTS_CSV} | cut_f 1)%29"
+
+# X
+for ((i=1; i<${NUM_TIMES}; i++)); do
+    X="${X}|$(sed -n $(($i + 1))p ${RESULTS_CSV} | cut_f 4 | grep -oE '\d\d:\d\d')"
+done
+
+
+# Y
+SCALE=50
+update_scale() {
+  if $(gt $1 ${SCALE}); then
+    $(gt $1 50) && SCALE=100 || :
+    $(gt $1 100) && SCALE=250 || :
+    $(gt $1 250) && SCALE=500 || :
+  fi
+}
+
+## up
+UPs=()
+for ((i=1; i<${NUM_TIMES}; i++)); do
+  Y1i="$(bc_2 "$(sed -n $(($i + 1))p ${RESULTS_CSV} | cut_f 8) / 1024 / 1024")"
+  UPs=("${UPs[@]}" ${Y1i})
+  update_scale ${Y1i}
+done
+for y in "${UPs[@]}"; do
+  Y1="${Y1}${Y1+,}$(bc_2 "$y * 100 / ${SCALE}")"
+done
+
+## down
+DOWNs=()
+for ((i=1; i<${NUM_TIMES}; i++)); do
+  Y2i="$(bc_2 "$(sed -n $(($i + 1))p ${RESULTS_CSV} | cut_f 7) / 1024 / 1024")"
+  echo ${Y2i}
+  DOWNs=("${DOWNs[@]}" ${Y2i})
+  update_scale ${Y2i}
+done
+for y in "${DOWNs[@]}"; do
+  Y2="${Y2}${Y2+,}$(bc_2 "$y * 100 / ${SCALE}")"
+done
+
+CHD="${Y1}|${Y2}"
+CHXR="1,0,${SCALE}"
+
+wget "${BASE_URL}?chs=${CHS}&cht=${CHT}&chco=${CHCO}&chdl=${CHDL}&chm=${CHM}&chxt=${CHXT}&chxl=0:${X}&chxr=${CHXR}&chtt=${CHTT}&chd=t:${CHD}" -O ${RESULTS_CHART}
+
+# finalize
+rm -f ${CLI}
