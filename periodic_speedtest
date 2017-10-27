@@ -61,13 +61,11 @@ fi
 echo 'fin iter 1...'
 
 # second and more speedtest
-if [ ${NUM_TIMES} -ge 2 ]; then
-  for ((i=2; i<${NUM_TIMES}; i++)); do
-    sleep $((${INTERVAL} * 60))
-    ${CLI} --csv --server ${SERVER_ID} >> ${RESULTS_CSV}
-    echo "fin iter $i..."
-  done
-fi
+for ((i=2; i<=${NUM_TIMES}; i++)); do
+  sleep $((${INTERVAL} * 60))
+  ${CLI} --csv --server ${SERVER_ID} >> ${RESULTS_CSV}
+  echo "fin iter $i..."
+done
 
 # generate chart
 BASE_URL='http://chart.apis.google.com/chart'
@@ -80,7 +78,7 @@ CHXT='x,y'
 CHTT="$(sed -n 2p ${RESULTS_CSV} | cut_f 3)%28$(sed -n 2p ${RESULTS_CSV} | cut_f 1)%29"
 
 # X
-for ((i=1; i<${NUM_TIMES}; i++)); do
+for ((i=1; i<=${NUM_TIMES}; i++)); do
     X="${X}|$(sed -n $(($i + 1))p ${RESULTS_CSV} | cut_f 4 | grep -oE '\d\d:\d\d')"
 done
 
@@ -97,7 +95,7 @@ update_scale() {
 
 ## up
 UPs=()
-for ((i=1; i<${NUM_TIMES}; i++)); do
+for ((i=1; i<=${NUM_TIMES}; i++)); do
   Y1i="$(bc_2 "$(sed -n $(($i + 1))p ${RESULTS_CSV} | cut_f 8) / 1024 / 1024")"
   UPs=("${UPs[@]}" ${Y1i})
   update_scale ${Y1i}
@@ -108,7 +106,7 @@ done
 
 ## down
 DOWNs=()
-for ((i=1; i<${NUM_TIMES}; i++)); do
+for ((i=1; i<=${NUM_TIMES}; i++)); do
   Y2i="$(bc_2 "$(sed -n $(($i + 1))p ${RESULTS_CSV} | cut_f 7) / 1024 / 1024")"
   echo ${Y2i}
   DOWNs=("${DOWNs[@]}" ${Y2i})
