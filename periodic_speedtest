@@ -66,7 +66,7 @@ echo 'fin iter 1...'
 
 ## second and more speedtest
 for ((i=2; i<=${NUM_TIMES}; i++)); do
-  sleep $((${INTERVAL} * 60))
+  sleep $((${INTERVAL} * 60 - 20))
   ${CLI} --csv --server ${SERVER_ID} >> ${RESULTS_CSV}
   echo "fin iter $i..."
 done
