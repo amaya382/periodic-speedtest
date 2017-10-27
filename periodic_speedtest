@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 usage() {
-  echo 'Usage: periodic_speedtest [-n num_of_times=60, -i interval(min)=1, -s server_id] results_file_prefix'
+  echo 'Usage: periodic_speedtest [-n num_of_times=60, -i interval(min)=1, -s server_id=autodetection] results_file_prefix'
   exit
 }
 
