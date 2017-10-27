@@ -79,7 +79,7 @@ CHTT="$(sed -n 2p ${RESULTS_CSV} | cut_f 3)%28$(sed -n 2p ${RESULTS_CSV} | cut_f
 
 # X
 for ((i=1; i<=${NUM_TIMES}; i++)); do
-    X="${X}|$(sed -n $(($i + 1))p ${RESULTS_CSV} | cut_f 4 | grep -oE '\d\d:\d\d')"
+    X="${X}|$(sed -n $(($i + 1))p ${RESULTS_CSV} | cut_f 4 | grep -oE '[0-9]{2}:[0-9]{2}')"
 done
 
 
