@@ -132,7 +132,6 @@ done
 DOWNs=()
 for ((i=1; i<=${NUM_TIMES}; i++)); do
   Y2i="$(bc_2 "$(sed -n $(($i + 1))p ${RESULTS_CSV} | cut_f 7) / 1024 / 1024")"
-  echo ${Y2i}
   DOWNs=("${DOWNs[@]}" ${Y2i})
   update_scale ${Y2i}
 done
